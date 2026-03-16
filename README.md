@@ -1,6 +1,7 @@
 # Fish Slapper
 
-[简体中文](./README.zh-CN.md) · [Nexus Mods 页面](https://www.nexusmods.com/stardewvalley/mods/43727)
+[简体中文](./README.zh-CN.md) 
+[Nexus Mods Page](https://www.nexusmods.com/stardewvalley/mods/43727)
 
 Fish Slapper is a small SMAPI mod for Stardew Valley that lets you slap a caught fish.
 
