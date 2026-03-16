@@ -1,6 +1,6 @@
 # Fish Slapper
 
-[English](./README.md)
+[English](./README.md) · [Nexus Mods 页面](https://www.nexusmods.com/stardewvalley/mods/43727)
 
 Fish Slapper 是一个为《星露谷物语》制作的小型 SMAPI 模组，让你在钓到鱼之后可以狠狠扇它一巴掌。
 

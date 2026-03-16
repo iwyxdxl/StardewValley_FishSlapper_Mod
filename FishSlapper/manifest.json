@@ -1,11 +1,13 @@
 {
    "Name": "Fish Slapper",
    "Author": "iwyxdxl",
-   "Version": "1.1.0",
+   "Version": "1.1.1",
    "Description": "Slap the fish！",
    "UniqueID": "iwyxdxl.FishSlapper",
    "EntryDll": "FishSlapper.dll",
    "MinimumApiVersion": "4.0.0",
+   "UpdateKeys": [ "Nexus:43727" ],
+   "Url": "https://www.nexusmods.com/stardewvalley/mods/43727",
    "Dependencies": [
       {
          "UniqueID": "spacechase0.GenericModConfigMenu",
