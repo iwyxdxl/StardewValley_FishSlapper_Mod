@@ -12,37 +12,41 @@ It is intended to be easier to reuse than the old raw diagnostic dump.
 
 ## Directional Frame Groups
 
-| Action | Down | Right | Up | Left |
-| --- | ---: | ---: | ---: | ---: |
-| walk | 0 | 8 | 16 | 24 |
-| run | 32 | 40 | 48 | 56 |
-| grab | 64 | 72 | 80 | 88 |
-| carryWalk | 96 | 104 | 112 | 120 |
-| carryRun | 128 | 136 | 144 | 152 |
-| tool | 160 | 168 | 176 | 184 |
-| toolChoose | 192 | 194 | 196 | 198 |
-| seedThrow | 200 | 204 | 208 | 212 |
-| swordswipe | 232 | 240 | 248 | 256 |
-| punch | 272 | 274 | 276 | 278 |
-| harvestItem | 281 | 280 | 279 | 282 |
-| shear | 285 | 284 | 283 | 286 |
-| milk | 289 | 288 | 287 | 290 |
-| fishing | 297 | 296 | 295 | 298 |
-| fishingDone | 301 | 300 | 299 | 302 |
+
+| Action      | Down | Right | Up  | Left |
+| ----------- | ---- | ----- | --- | ---- |
+| walk        | 0    | 8     | 16  | 24   |
+| run         | 32   | 40    | 48  | 56   |
+| grab        | 64   | 72    | 80  | 88   |
+| carryWalk   | 96   | 104   | 112 | 120  |
+| carryRun    | 128  | 136   | 144 | 152  |
+| tool        | 160  | 168   | 176 | 184  |
+| toolChoose  | 192  | 194   | 196 | 198  |
+| seedThrow   | 200  | 204   | 208 | 212  |
+| swordswipe  | 232  | 240   | 248 | 256  |
+| punch       | 272  | 274   | 276 | 278  |
+| harvestItem | 281  | 280   | 279 | 282  |
+| shear       | 285  | 284   | 283 | 286  |
+| milk        | 289  | 288   | 287 | 290  |
+| fishing     | 297  | 296   | 295 | 298  |
+| fishingDone | 301  | 300   | 299 | 302  |
+
 
 ## Single Frames
 
-| Name | Value |
-| --- | ---: |
-| eat | 216 |
-| sick | 224 |
-| tired | 291 |
-| tired2 | 292 |
-| passOutTired | 293 |
-| drink | 294 |
-| pan | 303 |
-| showHoldingEdible | 304 |
-| cheer | 97 |
+
+| Name              | Value |
+| ----------------- | ----- |
+| eat               | 216   |
+| sick              | 224   |
+| tired             | 291   |
+| tired2            | 292   |
+| passOutTired      | 293   |
+| drink             | 294   |
+| pan               | 303   |
+| showHoldingEdible | 304   |
+| cheer             | 97    |
+
 
 ## Mod-Specific Usage Notes
 

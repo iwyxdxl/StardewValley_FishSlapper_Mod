@@ -12,6 +12,8 @@ namespace FishSlapper.Vanilla
     {
         private static readonly Vector2 DiveStrikeToFarmerOffsetRight = new(-44f, 0f);
         private static readonly Vector2 DiveStrikeToFarmerOffsetLeft = new(-20f, 0f);
+        private static readonly Vector2 DiveStrikeToFarmerOffsetUp = new(-32f, 0f);
+        private const float UpCastRightSideDeadZone = 16f;
 
         public bool TryGetCaughtFishRod(out FishingRod? rod)
         {
@@ -37,7 +39,7 @@ namespace FishSlapper.Vanilla
                 OriginalPlayerPosition = originalPlayerPosition,
                 TargetBobberPosition = bobberPosition,
                 CastFacingDirection = castFacingDirection,
-                FacingRight = bobberPosition.X >= originalPlayerPosition.X,
+                FacingRight = ResolveDiveStrikeSide(castFacingDirection, originalPlayerPosition, bobberPosition),
                 PreviousFacingDirection = Game1.player.FacingDirection,
                 PreviousCanMove = Game1.player.canMove,
                 PreviousFreezePause = Game1.player.freezePause,
@@ -54,7 +56,11 @@ namespace FishSlapper.Vanilla
         {
             // 把“鱼钩命中点”映射到 fake farmer 的手部位置。
             // 这里保留经验偏移量，方便后续继续按观感微调。
-            Vector2 renderOffset = session.FacingRight ? DiveStrikeToFarmerOffsetRight : DiveStrikeToFarmerOffsetLeft;
+            Vector2 renderOffset = session.CastFacingDirection == 0
+                ? DiveStrikeToFarmerOffsetUp
+                : session.FacingRight
+                    ? DiveStrikeToFarmerOffsetRight
+                    : DiveStrikeToFarmerOffsetLeft;
             return session.TargetBobberPosition + renderOffset;
         }
 
@@ -181,6 +187,21 @@ namespace FishSlapper.Vanilla
         private static bool IsFacingDirection(int direction)
         {
             return direction is >= 0 and <= 3;
+        }
+
+        private static bool ResolveDiveStrikeSide(int castFacingDirection, Vector2 originalPlayerPosition, Vector2 bobberPosition)
+        {
+            if (castFacingDirection == 1)
+                return true;
+
+            if (castFacingDirection == 3)
+                return false;
+
+            float deltaX = bobberPosition.X - originalPlayerPosition.X;
+            if (castFacingDirection == 0 && Math.Abs(deltaX) < UpCastRightSideDeadZone)
+                return true;
+
+            return deltaX >= 0f;
         }
     }
 }

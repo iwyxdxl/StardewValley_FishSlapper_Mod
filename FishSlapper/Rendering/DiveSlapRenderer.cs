@@ -10,27 +10,27 @@ namespace FishSlapper.Rendering
 {
     internal sealed class DiveSlapRenderer
     {
+        // 原玩法“鱼拿在手上时扇鱼”用的出拳帧，只影响本体临时渲染。
         private const int CaughtFishPunchFrame = 278;
-        private const int DivePunchRightFrame = 274;
-        private const int DivePunchLeftFrame = 278;
-        private const int DiveRunDownFrame = 32;
-        private const int DiveIdleRightFrame = 8;
-        private const int DiveIdleLeftFrame = 24;
-        private const int DiveRunRightFrame = 40;
-        private const int DiveRunUpFrame = 48;
-        private const int DiveRunLeftFrame = 56;
-        private const int StandDownFrame = 0;
-        private const int StandRightFrame = 8;
-        private const int StandUpFrame = 16;
-        private const int StandLeftFrame = 24;
+
+        // 跳水玩法里真正会用到的动作帧：
+        // 1. 水中扇鱼时的左右出拳帧
+        // 2. 起跳/飞行/回岸时的四向移动帧
+        // 3. 水中待机或强制复位时的四向站立帧
+        private const int DiveSlapPunchRightFrame = 274;
+        private const int DiveSlapPunchLeftFrame = 278;
+        // 跳水位移阶段，当前改用 docs 里的 carryRun 组。
+        private const int DiveSlapMoveDownFrame = 128;
+        private const int DiveSlapMoveRightFrame = 136;
+        private const int DiveSlapMoveUpFrame = 144;
+        private const int DiveSlapMoveLeftFrame = 152;
+        private const int FarmerStandDownFrame = 0;
+        private const int FarmerStandRightFrame = 8;
+        private const int FarmerStandUpFrame = 16;
+        private const int FarmerStandLeftFrame = 24;
+
         private const int CaughtFishSlapDurationTicks = 30;
         private const int DiveHitAnimationDurationTicks = 10;
-        private static readonly RasterizerState WaterMaskRasterizerState = new()
-        {
-            CullMode = CullMode.None,
-            ScissorTestEnable = true
-        };
-
         private readonly List<BurstParticle> burstParticles = new();
         private readonly Random rng = new();
         private Texture2D? pixelTexture;
@@ -160,8 +160,6 @@ namespace FishSlapper.Rendering
         {
             if (session is null)
                 this.diveRenderFarmer = null;
-            else if (ShouldDrawDiveWaterOverlay(session))
-                this.DrawDiveWaterOverlay(e.SpriteBatch, session);
 
             if (this.pixelTexture is not null)
             {
@@ -233,6 +231,9 @@ namespace FishSlapper.Rendering
             renderFarmer.faceDirection(GetDiveFacingDirection(session));
             renderFarmer.UsingTool = false;
             renderFarmer.canReleaseTool = false;
+            renderFarmer.swimming.Value = false;
+            renderFarmer.bathingClothes.Value = false;
+            renderFarmer.yOffset = 0f;
 
             int frame = GetDiveFrame(session);
             this.ApplyPose(renderFarmer, frame);
@@ -252,10 +253,10 @@ namespace FishSlapper.Rendering
         {
             return facingDirection switch
             {
-                0 => StandUpFrame,
-                1 => StandRightFrame,
-                2 => StandDownFrame,
-                _ => StandLeftFrame
+                0 => FarmerStandUpFrame,
+                1 => FarmerStandRightFrame,
+                2 => FarmerStandDownFrame,
+                _ => FarmerStandLeftFrame
             };
         }
 
@@ -264,27 +265,22 @@ namespace FishSlapper.Rendering
             int facingDirection = GetDiveFacingDirection(session);
             return session.State switch
             {
-                DiveSlapState.Windup => GetWindupFrame(facingDirection),
-                DiveSlapState.Diving => GetTravelFrame(facingDirection),
-                DiveSlapState.Returning => GetTravelFrame(facingDirection),
-                DiveSlapState.Slapping when session.SlapAnimationTicksRemaining > 0 => session.FacingRight ? DivePunchRightFrame : DivePunchLeftFrame,
-                _ => GetIdleFrame(facingDirection)
+                DiveSlapState.Windup => GetDiveMoveFrame(facingDirection),
+                DiveSlapState.Diving => GetDiveMoveFrame(facingDirection),
+                DiveSlapState.Returning => GetDiveMoveFrame(facingDirection),
+                DiveSlapState.Slapping when session.SlapAnimationTicksRemaining > 0 => session.FacingRight ? DiveSlapPunchRightFrame : DiveSlapPunchLeftFrame,
+                _ => GetDiveIdleFrame(facingDirection)
             };
         }
 
-        private static int GetWindupFrame(int facingDirection)
-        {
-            return GetTravelFrame(facingDirection);
-        }
-
-        private static int GetTravelFrame(int facingDirection)
+        private static int GetDiveMoveFrame(int facingDirection)
         {
             return facingDirection switch
             {
-                0 => DiveRunUpFrame,
-                1 => DiveRunRightFrame,
-                2 => DiveRunDownFrame,
-                _ => DiveRunLeftFrame
+                0 => DiveSlapMoveUpFrame,
+                1 => DiveSlapMoveRightFrame,
+                2 => DiveSlapMoveDownFrame,
+                _ => DiveSlapMoveLeftFrame
             };
         }
 
@@ -298,15 +294,9 @@ namespace FishSlapper.Rendering
                 : session.CastFacingDirection;
         }
 
-        private static int GetIdleFrame(int facingDirection)
+        private static int GetDiveIdleFrame(int facingDirection)
         {
-            return facingDirection switch
-            {
-                0 => StandUpFrame,
-                1 => DiveIdleRightFrame,
-                2 => StandDownFrame,
-                _ => DiveIdleLeftFrame
-            };
+            return GetStandingFrame(facingDirection);
         }
 
         private static int GetOppositeFacingDirection(int facingDirection)
@@ -368,76 +358,6 @@ namespace FishSlapper.Rendering
                     Color = palette[this.rng.Next(palette.Length)]
                 });
             }
-        }
-
-        private void DrawDiveWaterOverlay(SpriteBatch spriteBatch, DiveSlapSession session)
-        {
-            GameLocation? location = Game1.currentLocation;
-            if (location is null)
-                return;
-
-            // 遮罩不再画纯色块，而是回刷当前位置真正的水面 tile，
-            // 这样不同地图的水体材质和动效都能保持一致。
-            Rectangle worldMask = GetDiveWaterMaskWorldRectangle(session.RenderPosition);
-            Rectangle screenMask = GetDiveWaterMaskScreenRectangle(session.RenderPosition);
-            GraphicsDevice device = Game1.graphics.GraphicsDevice;
-            Rectangle scissor = Rectangle.Intersect(screenMask, device.Viewport.Bounds);
-            if (scissor.Width <= 0 || scissor.Height <= 0)
-                return;
-
-            int tileLeft = Math.Max(0, worldMask.Left / Game1.tileSize);
-            int tileRight = Math.Max(tileLeft, (worldMask.Right - 1) / Game1.tileSize);
-            int tileTop = Math.Max(0, worldMask.Top / Game1.tileSize);
-            int tileBottom = Math.Max(tileTop, (worldMask.Bottom - 1) / Game1.tileSize);
-
-            Rectangle previousScissor = device.ScissorRectangle;
-            RasterizerState previousRasterizerState = device.RasterizerState;
-
-            try
-            {
-                device.ScissorRectangle = scissor;
-                device.RasterizerState = WaterMaskRasterizerState;
-
-                for (int tileY = tileTop; tileY <= tileBottom; tileY++)
-                {
-                    for (int tileX = tileLeft; tileX <= tileRight; tileX++)
-                    {
-                        if (location.isWaterTile(tileX, tileY))
-                            location.drawWaterTile(spriteBatch, tileX, tileY);
-                    }
-                }
-            }
-            finally
-            {
-                device.ScissorRectangle = previousScissor;
-                device.RasterizerState = previousRasterizerState;
-            }
-        }
-
-        private static Rectangle GetDiveWaterMaskWorldRectangle(Vector2 renderPosition)
-        {
-            return new Rectangle(
-                (int)renderPosition.X - 12,
-                (int)renderPosition.Y + 38,
-                92,
-                26
-            );
-        }
-
-        private static Rectangle GetDiveWaterMaskScreenRectangle(Vector2 renderPosition)
-        {
-            Vector2 localPosition = Game1.GlobalToLocal(Game1.viewport, renderPosition);
-            return new Rectangle(
-                (int)localPosition.X - 12,
-                (int)localPosition.Y + 38,
-                92,
-                26
-            );
-        }
-
-        private static bool ShouldDrawDiveWaterOverlay(DiveSlapSession session)
-        {
-            return session.State is DiveSlapState.Slapping or DiveSlapState.ResolveSuccess or DiveSlapState.ResolveFail;
         }
 
         private void EnsurePixelTexture()
