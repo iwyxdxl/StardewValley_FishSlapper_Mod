@@ -36,7 +36,7 @@ namespace FishSlapper.Vanilla
             string qualifiedFishId = bobberBar.whichFish;
             var fishMetadata = ItemRegistry.GetMetadata(qualifiedFishId);
             var fishData = fishMetadata.GetParsedOrErrorData();
-            Vector2 slapFishSurfacePosition = bobberPosition + new Vector2(0f, 6f);
+            Vector2 slapFishSurfacePosition = bobberPosition + new Vector2(20f, 6f);
             Vector2 retaliationImpactPosition = GetFailRetaliationImpactPosition(bobberPosition, castFacingDirection);
             Vector2 retaliationStartPosition = retaliationImpactPosition + new Vector2(124f, 52f);
             Vector2 retaliationExitPosition = retaliationImpactPosition + new Vector2(-148f, 58f);
@@ -286,7 +286,7 @@ namespace FishSlapper.Vanilla
                     ? DiveStrikeToFarmerOffsetLeft
                     : DiveStrikeToFarmerOffsetRight;
             Vector2 diveRenderPosition = bobberPosition + renderOffset;
-            return diveRenderPosition + new Vector2(34f, -88f);
+            return diveRenderPosition + new Vector2(34f, -38f);
         }
 
         private static int ResolveDiveCastFacingDirection(FishingRod rod, Vector2 originalPlayerPosition, Vector2 bobberPosition)

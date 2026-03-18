@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
@@ -265,6 +266,7 @@ namespace FishSlapper.Gameplay
             if (!session.OutcomeApplied)
             {
                 this.vanillaBridge.ApplySuccess(session);
+                this.ShowDiveSuccessMessage(session);
                 session.OutcomeApplied = true;
             }
         }
@@ -321,6 +323,25 @@ namespace FishSlapper.Gameplay
                 .ToString();
             this.renderer.PlayDiveRetaliationImpact(session.FailRetaliationImpactPosition);
             Game1.addHUDMessage(HUDMessage.ForCornerTextbox(retaliationText));
+        }
+
+        private void ShowDiveSuccessMessage(DiveSlapSession session)
+        {
+            int elapsedTicks = Math.Max(1, session.TotalSlapTicks - session.RemainingSlapTicks);
+            float elapsedSeconds = Math.Max(0.1f, elapsedTicks / 60f);
+            string timeText = elapsedSeconds.ToString("0.0", CultureInfo.InvariantCulture);
+            string successText = this.helper.Translation
+                .Get(
+                    "hud.dive-slap-success",
+                    new
+                    {
+                        time = timeText,
+                        fish = session.TargetFishDisplayName,
+                        slap_num = session.CurrentHits
+                    }
+                )
+                .ToString();
+            Game1.addHUDMessage(HUDMessage.ForCornerTextbox(successText));
         }
 
         private void LockPlayerForDive(DiveSlapSession session)

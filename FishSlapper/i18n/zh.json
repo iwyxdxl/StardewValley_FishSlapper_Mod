@@ -5,5 +5,6 @@
   "config.dive-slap-key.tooltip": "钓鱼条出现时按下此键，触发跳水扇鱼。",
   "hud.dive-slap-prompt": "按 [{{key}}] 跳水扇鱼！",
   "hud.slap-prompt": "按 [{{key}}] 扇鱼！",
-  "hud.dive-slap-retaliation": "你被{{fish}}扇了一巴掌。"
+  "hud.dive-slap-retaliation": "你被{{fish}}嘲笑了并扇了你一巴掌。",
+  "hud.dive-slap-success": "你气急败坏地跳进水中，并在{{time}}秒内给{{fish}}来了{{slap_num}}个巴掌，成功把{{fish}}拍晕了！"
 }

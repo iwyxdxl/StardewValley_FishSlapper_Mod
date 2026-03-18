@@ -58,6 +58,10 @@ namespace FishSlapper.Rendering
         private const float PromptPadX = 10f;
         private const float PromptPadY = 5f;
         private const float PromptBelowFeetOffset = 48f;
+        private const int SwimShadowFrameSize = 16;
+        private const int SwimShadowFrameCount = 10;
+        private const int SwimShadowFrameDurationMs = 70;
+        private const float SwimShadowScale = 4f;
 
         private static readonly Color HudBorderColor = new(40, 30, 20, 230);
         private static readonly Color HudHitFilledColor = new(255, 200, 50);
@@ -71,7 +75,10 @@ namespace FishSlapper.Rendering
         private readonly List<BurstParticle> burstParticles = new();
         private readonly Random rng = new();
         private Texture2D? pixelTexture;
+        private Texture2D? swimShadowTexture;
         private int caughtFishSlapTick = -1;
+        private int swimShadowFrame;
+        private int swimShadowTimer = SwimShadowFrameDurationMs;
         private float fishTwitchOffsetX;
         private float fishTwitchOffsetY;
         private float fishTwitchRotation;
@@ -169,6 +176,8 @@ namespace FishSlapper.Rendering
 
         public void OnUpdateTicked(DiveSlapSession? session)
         {
+            this.UpdateSwimShadowAnimation(session);
+
             if (this.caughtFishSlapTick >= 0)
             {
                 this.caughtFishSlapTick++;
@@ -357,6 +366,9 @@ namespace FishSlapper.Rendering
             this.toolSuppressedFarmer = renderFarmer;
             try
             {
+                if (renderFarmer.swimming.Value)
+                    this.DrawDiveSwimShadow(spriteBatch, renderFarmer);
+
                 renderFarmer.draw(spriteBatch);
             }
             finally
@@ -508,8 +520,8 @@ namespace FishSlapper.Rendering
             renderFarmer.faceDirection(GetDiveFacingDirection(session));
             renderFarmer.UsingTool = false;
             renderFarmer.canReleaseTool = false;
-            renderFarmer.swimming.Value = false;
-            renderFarmer.bathingClothes.Value = false;
+            renderFarmer.swimming.Value = ShouldRenderDiveAsSwimming(session);
+            renderFarmer.bathingClothes.Value = renderFarmer.swimming.Value;
             renderFarmer.yOffset = 0f;
 
             int frame = GetDiveFrame(session);
@@ -524,6 +536,43 @@ namespace FishSlapper.Rendering
             farmer.FarmerSprite.StopAnimation();
             farmer.FarmerSprite.ClearAnimation();
             farmer.FarmerSprite.setCurrentFrame(frame, 0, 0, 1, false, false);
+        }
+
+        private void UpdateSwimShadowAnimation(DiveSlapSession? session)
+        {
+            if (session is null || !ShouldRenderDiveAsSwimming(session))
+                return;
+
+            this.swimShadowTimer -= Game1.currentGameTime.ElapsedGameTime.Milliseconds;
+            if (this.swimShadowTimer > 0)
+                return;
+
+            this.swimShadowTimer = SwimShadowFrameDurationMs;
+            this.swimShadowFrame = (this.swimShadowFrame + 1) % SwimShadowFrameCount;
+        }
+
+        private void DrawDiveSwimShadow(SpriteBatch spriteBatch, Farmer farmer)
+        {
+            this.EnsureSwimShadowTexture();
+            if (this.swimShadowTexture is null)
+                return;
+
+            Vector2 screenPosition = Game1.GlobalToLocal(
+                Game1.viewport,
+                farmer.Position + new Vector2(0f, farmer.FarmerSprite.SpriteHeight / 4 * 4)
+            );
+
+            spriteBatch.Draw(
+                this.swimShadowTexture,
+                screenPosition,
+                new Rectangle(this.swimShadowFrame * SwimShadowFrameSize, 0, SwimShadowFrameSize, SwimShadowFrameSize),
+                Color.White,
+                0f,
+                Vector2.Zero,
+                SwimShadowScale,
+                SpriteEffects.None,
+                0f
+            );
         }
 
         private static int GetStandingFrame(int facingDirection)
@@ -587,6 +636,11 @@ namespace FishSlapper.Rendering
         private static int GetDiveIdleFrame(int facingDirection)
         {
             return GetStandingFrame(facingDirection);
+        }
+
+        private static bool ShouldRenderDiveAsSwimming(DiveSlapSession session)
+        {
+            return session.State is DiveSlapState.Slapping or DiveSlapState.ResolveSuccess or DiveSlapState.ResolveFail;
         }
 
         private static int GetOppositeFacingDirection(int facingDirection)
@@ -794,28 +848,38 @@ namespace FishSlapper.Rendering
             if (!IsDiveSlapFishAnimationActive(session))
                 return;
 
+            bool isAirborne = session.SlapFishOffsetY < 0f || session.SlapFishVelocityY < 0f;
             float previousOffsetY = session.SlapFishOffsetY;
             session.SlapFishOffsetX += session.SlapFishVelocityX;
-            session.SlapFishOffsetY += session.SlapFishVelocityY;
             session.SlapFishRotation += session.SlapFishRotationVelocity;
             session.SlapFishVelocityX *= 0.72f;
-            session.SlapFishVelocityY += 1.1f;
             session.SlapFishRotationVelocity *= 0.78f;
 
-            if (previousOffsetY < 0f && session.SlapFishOffsetY >= 0f)
+            if (isAirborne)
+            {
+                session.SlapFishOffsetY += session.SlapFishVelocityY;
+                session.SlapFishVelocityY += 1.1f;
+
+                if (previousOffsetY < 0f && session.SlapFishOffsetY >= 0f)
+                {
+                    session.SlapFishOffsetY = 0f;
+                    this.SpawnSplashParticles(session.SlapFishSurfacePosition);
+                    if (session.SlapFishBouncesRemaining > 0)
+                    {
+                        session.SlapFishVelocityY = CaughtFishBounceJumpVelocity;
+                        session.SlapFishRotationVelocity = -session.SlapFishRotationVelocity * 0.6f;
+                        session.SlapFishBouncesRemaining--;
+                    }
+                    else
+                    {
+                        session.SlapFishVelocityY = 0f;
+                    }
+                }
+            }
+            else
             {
                 session.SlapFishOffsetY = 0f;
-                this.SpawnSplashParticles(session.SlapFishSurfacePosition);
-                if (session.SlapFishBouncesRemaining > 0)
-                {
-                    session.SlapFishVelocityY = CaughtFishBounceJumpVelocity;
-                    session.SlapFishRotationVelocity = -session.SlapFishRotationVelocity * 0.6f;
-                    session.SlapFishBouncesRemaining--;
-                }
-                else
-                {
-                    session.SlapFishVelocityY = 0f;
-                }
+                session.SlapFishVelocityY = 0f;
             }
 
             if (MathF.Abs(session.SlapFishOffsetX) < 0.05f && MathF.Abs(session.SlapFishVelocityX) < 0.05f)
@@ -1025,6 +1089,11 @@ namespace FishSlapper.Rendering
 
             this.pixelTexture = new Texture2D(Game1.graphics.GraphicsDevice, 1, 1);
             this.pixelTexture.SetData(new[] { Color.White });
+        }
+
+        private void EnsureSwimShadowTexture()
+        {
+            this.swimShadowTexture ??= Game1.content.Load<Texture2D>(@"LooseSprites\swimShadow");
         }
     }
 }

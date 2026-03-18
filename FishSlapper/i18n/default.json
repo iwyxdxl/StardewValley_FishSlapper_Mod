@@ -5,5 +5,6 @@
   "config.dive-slap-key.tooltip": "Press this key during the BobberBar to jump into the water and slap the fish.",
   "hud.dive-slap-prompt": "Press [{{key}}] to Dive Slap!",
   "hud.slap-prompt": "Press [{{key}}] to Slap!",
-  "hud.dive-slap-retaliation": "You got slapped by a {{fish}}."
+  "hud.dive-slap-retaliation": "The {{fish}} mocked you and slapped you.",
+  "hud.dive-slap-success": "You jumped into the water in a rage and gave the {{fish}} {{slap_num}} slaps in {{time}} seconds, successfully knocking it out!"
 }
