@@ -88,6 +88,7 @@ namespace FishSlapper.Vanilla
                 && session.State is DiveSlapState.Windup
                     or DiveSlapState.Diving
                     or DiveSlapState.Slapping
+                    or DiveSlapState.ResolveSuccessPauseBefore
                     or DiveSlapState.ResolveSuccess
                     or DiveSlapState.ResolveFailPauseBefore
                     or DiveSlapState.ResolveFail

@@ -6,6 +6,7 @@ namespace FishSlapper.Gameplay
         Windup,
         Diving,
         Slapping,
+        ResolveSuccessPauseBefore,
         ResolveSuccess,
         ResolveFailPauseBefore,
         ResolveFail,

@@ -166,14 +166,18 @@ namespace FishSlapper.Rendering
 
         public void PlayDiveRetaliationLaunch(Vector2 launchWorldPos)
         {
-            Game1.playSound(ModConstants.DiveWaterEntrySoundId);
-            this.SpawnSplashParticles(launchWorldPos);
+            this.PlayFishWaterSplash(launchWorldPos);
         }
 
         public void PlayDiveRetaliationImpact(Vector2 impactWorldPos)
         {
             Game1.playSound(ModConstants.SlapSoundId);
             this.SpawnRetaliationImpactParticles(impactWorldPos);
+        }
+
+        public void PlayDiveRetaliationSplashdown(Vector2 splashWorldPos)
+        {
+            this.PlayFishWaterSplash(splashWorldPos);
         }
 
         public void OnUpdateTicked(DiveSlapSession? session)
@@ -623,6 +627,7 @@ namespace FishSlapper.Rendering
                 DiveSlapState.Returning => GetDiveMoveFrame(facingDirection),
                 DiveSlapState.Slapping when session.SlapAnimationTicksRemaining > 0 => session.FacingRight ? DiveSlapPunchRightFrame : DiveSlapPunchLeftFrame,
                 DiveSlapState.Slapping => FarmerIdleDownFrame,
+                DiveSlapState.ResolveSuccessPauseBefore => FarmerIdleDownFrame,
                 DiveSlapState.ResolveSuccess => DiveSuccessHoldDownFrame,
                 DiveSlapState.ResolveFailPauseBefore => FarmerIdleDownFrame,
                 DiveSlapState.ResolveFail => FarmerIdleDownFrame,
@@ -674,6 +679,7 @@ namespace FishSlapper.Rendering
         private static bool ShouldRenderDiveAsSwimming(DiveSlapSession session)
         {
             return session.State is DiveSlapState.Slapping
+                or DiveSlapState.ResolveSuccessPauseBefore
                 or DiveSlapState.ResolveFailPauseBefore
                 or DiveSlapState.ResolveFail
                 or DiveSlapState.ResolveFailPauseAfter;
@@ -904,7 +910,7 @@ namespace FishSlapper.Rendering
             session.SlapFishVelocityY = CaughtFishInitialJumpVelocity;
             session.SlapFishRotationVelocity = session.SlapFishVelocityX * 0.065f;
             session.SlapFishBouncesRemaining = 1;
-            this.SpawnSplashParticles(session.SlapFishSurfacePosition);
+            this.PlayFishWaterSplash(session.SlapFishSurfacePosition);
         }
 
         private void UpdateDiveSlapFish(DiveSlapSession session)
@@ -927,7 +933,7 @@ namespace FishSlapper.Rendering
                 if (previousOffsetY < 0f && session.SlapFishOffsetY >= 0f)
                 {
                     session.SlapFishOffsetY = 0f;
-                    this.SpawnSplashParticles(session.SlapFishSurfacePosition);
+                    this.PlayFishWaterSplash(session.SlapFishSurfacePosition);
                     if (session.SlapFishBouncesRemaining > 0)
                     {
                         session.SlapFishVelocityY = CaughtFishBounceJumpVelocity;
@@ -1054,6 +1060,12 @@ namespace FishSlapper.Rendering
             if (fraction > 0.2f)
                 return Color.Lerp(HudTimeRedColor, HudTimeYellowColor, (fraction - 0.2f) / 0.3f);
             return HudTimeRedColor;
+        }
+
+        private void PlayFishWaterSplash(Vector2 splashWorldPos)
+        {
+            Game1.playSound(ModConstants.FishWaterSplashSoundId);
+            this.SpawnSplashParticles(splashWorldPos);
         }
 
         private void SpawnSplashParticles(Vector2 splashWorldPos)

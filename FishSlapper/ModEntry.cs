@@ -101,12 +101,20 @@ namespace FishSlapper
             e.Edit(asset =>
             {
                 var data = asset.AsDictionary<string, StardewValley.GameData.AudioCueData>().Data;
-                string audioFilePath = Path.Combine(this.Helper.DirectoryPath, "assets", "slap.wav");
+                string slapAudioFilePath = Path.Combine(this.Helper.DirectoryPath, "assets", "slap.wav");
+                string playerDiveAudioFilePath = Path.Combine(this.Helper.DirectoryPath, "assets", "PlayerDive.wav");
 
                 data[ModConstants.SlapSoundId] = new StardewValley.GameData.AudioCueData
                 {
                     Id = ModConstants.SlapSoundId,
-                    FilePaths = new List<string> { audioFilePath },
+                    FilePaths = new List<string> { slapAudioFilePath },
+                    Category = "Sound"
+                };
+
+                data[ModConstants.PlayerDiveSoundId] = new StardewValley.GameData.AudioCueData
+                {
+                    Id = ModConstants.PlayerDiveSoundId,
+                    FilePaths = new List<string> { playerDiveAudioFilePath },
                     Category = "Sound"
                 };
             });

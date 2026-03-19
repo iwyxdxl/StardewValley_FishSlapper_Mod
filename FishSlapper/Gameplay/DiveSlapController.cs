@@ -19,6 +19,7 @@ namespace FishSlapper.Gameplay
         private const float DiveSlapStaminaCost = 50f;
         private const int WindupTicks = 8;
         private const int DivingTicks = 45;
+        private const int SuccessReturnDelayTicks = 30;
         private const int ResolveSuccessTicks = 60;
         private const int FailRetaliationDelayTicks = 30;
         private const int FailRetaliationTicks = 56;
@@ -188,6 +189,20 @@ namespace FishSlapper.Gameplay
                         this.BeginResolveFail(this.activeSession);
                     break;
 
+                case DiveSlapState.ResolveSuccessPauseBefore:
+                    if (this.AdvancePhase(this.activeSession))
+                    {
+                        this.BeginPhase(
+                            this.activeSession,
+                            DiveSlapState.Returning,
+                            ReturningTicks,
+                            this.activeSession.RenderPosition,
+                            this.activeSession.OriginalPlayerPosition
+                        );
+                        this.renderer.PlayDiveWaterExit();
+                    }
+                    break;
+
                 case DiveSlapState.ResolveSuccess:
                     if (this.AdvancePhase(this.activeSession))
                     {
@@ -226,6 +241,7 @@ namespace FishSlapper.Gameplay
 
                     if (failPhaseFinished)
                     {
+                        this.renderer.PlayDiveRetaliationSplashdown(this.activeSession.FailRetaliationExitPosition);
                         if (!this.activeSession.OutcomeApplied)
                         {
                             this.vanillaBridge.ApplyFailure(this.activeSession);
@@ -284,6 +300,7 @@ namespace FishSlapper.Gameplay
                 return;
 
             if (this.activeSession.State is DiveSlapState.ResolveSuccess
+                or DiveSlapState.ResolveSuccessPauseBefore
                 or DiveSlapState.ResolveFailPauseBefore
                 or DiveSlapState.ResolveFail
                 or DiveSlapState.ResolveFailPauseAfter
@@ -349,12 +366,11 @@ namespace FishSlapper.Gameplay
 
             this.BeginPhase(
                 session,
-                DiveSlapState.Returning,
-                ReturningTicks,
+                DiveSlapState.ResolveSuccessPauseBefore,
+                SuccessReturnDelayTicks,
                 session.RenderPosition,
-                session.OriginalPlayerPosition
+                session.RenderPosition
             );
-            this.renderer.PlayDiveWaterExit();
         }
 
         private void BeginResolveFail(DiveSlapSession session)
