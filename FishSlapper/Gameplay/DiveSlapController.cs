@@ -178,7 +178,7 @@ namespace FishSlapper.Gameplay
                         this.activeSession.RenderPosition = this.activeSession.PhaseTargetPosition;
                         this.activeSession.PhaseStartPosition = this.activeSession.PhaseTargetPosition;
                         this.activeSession.PhaseTargetPosition = this.activeSession.PhaseTargetPosition;
-                        this.renderer.PlayDiveWaterEntry();
+                        this.renderer.PlayDiveWaterEntry(this.activeSession.RenderPosition);
                     }
                     break;
 
@@ -199,7 +199,7 @@ namespace FishSlapper.Gameplay
                             this.activeSession.RenderPosition,
                             this.activeSession.OriginalPlayerPosition
                         );
-                        this.renderer.PlayDiveWaterExit();
+                        this.renderer.PlayDiveWaterExit(this.activeSession.RenderPosition);
                     }
                     break;
 
@@ -268,7 +268,7 @@ namespace FishSlapper.Gameplay
                             this.activeSession.RenderPosition,
                             this.activeSession.OriginalPlayerPosition
                         );
-                        this.renderer.PlayDiveWaterExit();
+                        this.renderer.PlayDiveWaterExit(this.activeSession.RenderPosition);
                     }
                     break;
 

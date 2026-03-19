@@ -106,6 +106,7 @@ namespace FishSlapper.Rendering
             public float Rotation;
             public float RotationSpeed;
             public Color Color;
+            public float Gravity;
         }
 
         public bool ShouldHideCaughtFishToolPreview => this.hideCaughtFishPreview;
@@ -147,16 +148,19 @@ namespace FishSlapper.Rendering
             Game1.playSound(ModConstants.SlapSoundId);
             this.StartDiveSlapFishJump(session);
             this.SpawnBurstParticles(impactWorldPos);
+            this.SpawnSlapWaterDroplets(impactWorldPos);
         }
 
-        public void PlayDiveWaterEntry()
+        public void PlayDiveWaterEntry(Vector2 splashWorldPos)
         {
             Game1.playSound(ModConstants.DiveWaterEntrySoundId);
+            this.SpawnPlayerDiveSplash(splashWorldPos);
         }
 
-        public void PlayDiveWaterExit()
+        public void PlayDiveWaterExit(Vector2 splashWorldPos)
         {
             Game1.playSound(ModConstants.DiveWaterExitSoundId);
+            this.SpawnPlayerExitSplash(splashWorldPos);
         }
 
         public void PlayDiveJump()
@@ -252,6 +256,7 @@ namespace FishSlapper.Rendering
             {
                 particle.WorldPos += particle.Velocity;
                 particle.Velocity *= 0.91f;
+                particle.Velocity.Y += particle.Gravity;
                 particle.Alpha -= particle.AlphaDecay;
                 particle.Rotation += particle.RotationSpeed;
             }
@@ -1077,12 +1082,12 @@ namespace FishSlapper.Rendering
             for (int i = 0; i < dropletCount; i++)
             {
                 float angle = MathHelper.Pi + (float)(this.rng.NextDouble() * MathHelper.Pi);
-                float speed = 1.8f + (float)(this.rng.NextDouble() * 3.8f);
-                float width = 2f + (float)(this.rng.NextDouble() * 2f);
+                float speed = 3.6f + (float)(this.rng.NextDouble() * 7.6f);
+                float width = 4f + (float)(this.rng.NextDouble() * 4f);
                 this.burstParticles.Add(new BurstParticle
                 {
-                    WorldPos = splashWorldPos + new Vector2((float)(this.rng.NextDouble() * 16f - 8f), (float)(this.rng.NextDouble() * 6f - 3f)),
-                    Velocity = new Vector2(MathF.Cos(angle) * speed, MathF.Sin(angle) * speed - 1.8f),
+                    WorldPos = splashWorldPos + new Vector2((float)(this.rng.NextDouble() * 32f - 16f), 30f + (float)(this.rng.NextDouble() * 12f - 6f)),
+                    Velocity = new Vector2(MathF.Cos(angle) * speed, MathF.Sin(angle) * speed - 3.6f),
                     Alpha = 0.95f,
                     AlphaDecay = 0.035f + (float)(this.rng.NextDouble() * 0.01f),
                     Width = width,
@@ -1090,6 +1095,129 @@ namespace FishSlapper.Rendering
                     Rotation = angle,
                     RotationSpeed = (float)(this.rng.NextDouble() * 0.2f - 0.1f),
                     Color = palette[this.rng.Next(palette.Length)]
+                });
+            }
+        }
+
+        private void SpawnPlayerDiveSplash(Vector2 splashWorldPos)
+        {
+            this.EnsurePixelTexture();
+
+            Vector2 center = splashWorldPos + new Vector2(32f, 30f);
+            Color[] palette = { new Color(170, 225, 255), new Color(120, 195, 255), new Color(200, 235, 255), Color.White };
+
+            int dropletCount = this.rng.Next(20, 28);
+            for (int i = 0; i < dropletCount; i++)
+            {
+                float angle = -MathHelper.PiOver2 + (float)(this.rng.NextDouble() - 0.5) * MathHelper.Pi * 0.85f;
+                float speed = 7f + (float)(this.rng.NextDouble() * 11f);
+                float size = 5f + (float)(this.rng.NextDouble() * 6f);
+                this.burstParticles.Add(new BurstParticle
+                {
+                    WorldPos = center + new Vector2((float)(this.rng.NextDouble() * 40f - 20f), (float)(this.rng.NextDouble() * 12f - 6f)),
+                    Velocity = new Vector2(MathF.Cos(angle) * speed, MathF.Sin(angle) * speed),
+                    Alpha = 0.95f,
+                    AlphaDecay = 0.022f + (float)(this.rng.NextDouble() * 0.01f),
+                    Width = size,
+                    Height = size * 1.4f,
+                    Rotation = angle,
+                    RotationSpeed = (float)(this.rng.NextDouble() * 0.15f - 0.075f),
+                    Color = palette[this.rng.Next(palette.Length)],
+                    Gravity = 0.15f
+                });
+            }
+
+            int rippleCount = this.rng.Next(8, 12);
+            for (int i = 0; i < rippleCount; i++)
+            {
+                float direction = (float)(this.rng.NextDouble() * MathHelper.TwoPi);
+                float speed = 5f + (float)(this.rng.NextDouble() * 7f);
+                this.burstParticles.Add(new BurstParticle
+                {
+                    WorldPos = center + new Vector2((float)(this.rng.NextDouble() * 20f - 10f), 0f),
+                    Velocity = new Vector2(MathF.Cos(direction) * speed, MathF.Sin(direction) * speed * 0.3f),
+                    Alpha = 0.7f,
+                    AlphaDecay = 0.022f + (float)(this.rng.NextDouble() * 0.008f),
+                    Width = 16f + (float)(this.rng.NextDouble() * 12f),
+                    Height = 4f + (float)(this.rng.NextDouble() * 3f),
+                    Rotation = direction,
+                    RotationSpeed = 0f,
+                    Color = new Color(150, 215, 255, 180)
+                });
+            }
+        }
+
+        private void SpawnPlayerExitSplash(Vector2 splashWorldPos)
+        {
+            this.EnsurePixelTexture();
+
+            Vector2 center = splashWorldPos + new Vector2(32f, 30f);
+            Color[] palette = { new Color(170, 225, 255), new Color(120, 195, 255), Color.White };
+
+            int dropletCount = this.rng.Next(14, 20);
+            for (int i = 0; i < dropletCount; i++)
+            {
+                float angle = -MathHelper.PiOver2 + (float)(this.rng.NextDouble() - 0.5) * MathHelper.Pi * 0.7f;
+                float speed = 5.6f + (float)(this.rng.NextDouble() * 9f);
+                float size = 4f + (float)(this.rng.NextDouble() * 5f);
+                this.burstParticles.Add(new BurstParticle
+                {
+                    WorldPos = center + new Vector2((float)(this.rng.NextDouble() * 32f - 16f), (float)(this.rng.NextDouble() * 8f - 4f)),
+                    Velocity = new Vector2(MathF.Cos(angle) * speed, MathF.Sin(angle) * speed),
+                    Alpha = 0.9f,
+                    AlphaDecay = 0.028f + (float)(this.rng.NextDouble() * 0.012f),
+                    Width = size,
+                    Height = size * 1.3f,
+                    Rotation = angle,
+                    RotationSpeed = (float)(this.rng.NextDouble() * 0.12f - 0.06f),
+                    Color = palette[this.rng.Next(palette.Length)],
+                    Gravity = 0.15f
+                });
+            }
+
+            int rippleCount = this.rng.Next(5, 8);
+            for (int i = 0; i < rippleCount; i++)
+            {
+                float direction = (float)(this.rng.NextDouble() * MathHelper.TwoPi);
+                float speed = 4f + (float)(this.rng.NextDouble() * 5f);
+                this.burstParticles.Add(new BurstParticle
+                {
+                    WorldPos = center + new Vector2((float)(this.rng.NextDouble() * 16f - 8f), 0f),
+                    Velocity = new Vector2(MathF.Cos(direction) * speed, MathF.Sin(direction) * speed * 0.25f),
+                    Alpha = 0.6f,
+                    AlphaDecay = 0.025f + (float)(this.rng.NextDouble() * 0.01f),
+                    Width = 12f + (float)(this.rng.NextDouble() * 10f),
+                    Height = 4f + (float)(this.rng.NextDouble() * 2f),
+                    Rotation = direction,
+                    RotationSpeed = 0f,
+                    Color = new Color(150, 215, 255, 160)
+                });
+            }
+        }
+
+        private void SpawnSlapWaterDroplets(Vector2 impactWorldPos)
+        {
+            this.EnsurePixelTexture();
+
+            Color[] palette = { new Color(170, 220, 255), new Color(140, 200, 255), Color.White };
+            int dropletCount = this.rng.Next(5, 9);
+            for (int i = 0; i < dropletCount; i++)
+            {
+                float angle = -MathHelper.PiOver2 + (float)(this.rng.NextDouble() - 0.5) * MathHelper.Pi;
+                float speed = 4f + (float)(this.rng.NextDouble() * 6f);
+                float size = 3f + (float)(this.rng.NextDouble() * 4f);
+                this.burstParticles.Add(new BurstParticle
+                {
+                    WorldPos = impactWorldPos + new Vector2((float)(this.rng.NextDouble() * 24f - 12f), (float)(this.rng.NextDouble() * 8f - 4f)),
+                    Velocity = new Vector2(MathF.Cos(angle) * speed, MathF.Sin(angle) * speed),
+                    Alpha = 0.8f,
+                    AlphaDecay = 0.035f + (float)(this.rng.NextDouble() * 0.015f),
+                    Width = size,
+                    Height = size * 1.2f,
+                    Rotation = (float)(this.rng.NextDouble() * MathHelper.TwoPi),
+                    RotationSpeed = (float)(this.rng.NextDouble() * 0.1f - 0.05f),
+                    Color = palette[this.rng.Next(palette.Length)],
+                    Gravity = 0.12f
                 });
             }
         }
