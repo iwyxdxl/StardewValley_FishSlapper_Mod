@@ -27,7 +27,18 @@ Fish Slapper 是一个给《星露谷物语》用的轻量 SMAPI 模组。你可
 
 ## 演示
 
-![扇鱼演示](docs/SlapTheFish.gif)
+### 钓上扇鱼
+
+![钓上扇鱼演示 1](docs/FishSlapDemo.gif)
+![钓上扇鱼演示 2](docs/FishSlapDemo2.gif)
+
+### 下水扇鱼成功
+
+![下水扇鱼成功演示](docs/DiveSlapSuccess.gif)
+
+### 下水扇鱼失败
+
+![下水扇鱼失败演示](docs/DiveSlapFailure.gif)
 
 ## 运行需求
 

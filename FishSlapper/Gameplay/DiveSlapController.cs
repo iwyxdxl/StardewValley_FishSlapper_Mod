@@ -336,6 +336,12 @@ namespace FishSlapper.Gameplay
             return this.vanillaBridge.ShouldFreezeBobberBarUpdate(bobberBar, this.activeSession);
         }
 
+        public bool ShouldSuppressBobberBarDraw(BobberBar bobberBar)
+        {
+            return this.activeSession is not null
+                && ReferenceEquals(this.activeSession.BobberBar, bobberBar);
+        }
+
         private void HandleActiveSessionInput(ButtonPressedEventArgs e)
         {
             bool pressedDiveKey = this.config.DiveSlapKey.JustPressed();

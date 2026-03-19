@@ -28,7 +28,18 @@ Fish Slapper is a lightweight SMAPI mod for Stardew Valley that lets you deal wi
 
 ## Demo
 
-![Slap The Fish demo](docs/SlapTheFish.gif)
+### Fish Slap
+
+![Fish Slap demo 1](docs/FishSlapDemo.gif)
+![Fish Slap demo 2](docs/FishSlapDemo2.gif)
+
+### Dive Slap Success
+
+![Dive Slap success demo](docs/DiveSlapSuccess.gif)
+
+### Dive Slap Failure
+
+![Dive Slap failure demo](docs/DiveSlapFailure.gif)
 
 ## Requirements
 
