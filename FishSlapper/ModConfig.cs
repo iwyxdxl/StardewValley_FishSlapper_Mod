@@ -8,5 +8,6 @@ namespace FishSlapper
         public KeybindList SlapKey { get; set; } = KeybindList.Parse("MouseRight, Space");
         public KeybindList DiveSlapKey { get; set; } = KeybindList.Parse("Q");
         public bool HideKeyPrompts { get; set; } = false;
+        public bool EnableMobileButton { get; set; } = false;
     }
 }

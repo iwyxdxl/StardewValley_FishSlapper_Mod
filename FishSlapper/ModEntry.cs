@@ -5,8 +5,11 @@ using FishSlapper.Patches;
 using FishSlapper.Rendering;
 using FishSlapper.Vanilla;
 using HarmonyLib;
+using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
+using StardewValley;
+using StardewValley.Menus;
 
 namespace FishSlapper
 {
@@ -76,6 +79,14 @@ namespace FishSlapper
                 tooltip: () => this.Helper.Translation.Get("config.hide-key-prompts.tooltip")
             );
 
+            configMenu.AddBoolOption(
+                mod: this.ModManifest,
+                getValue: () => this.Config.EnableMobileButton,
+                setValue: value => this.Config.EnableMobileButton = value,
+                name: () => this.Helper.Translation.Get("config.mobile-button.name"),
+                tooltip: () => this.Helper.Translation.Get("config.mobile-button.tooltip")
+            );
+
             configMenu.AddKeybindList(
                 mod: this.ModManifest,
                 getValue: () => this.Config.SlapKey,
@@ -122,6 +133,9 @@ namespace FishSlapper
 
         private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
+            if (this.TryHandleMobileActionButtonPress(e))
+                return;
+
             this.Controller.OnButtonPressed(e);
         }
 
@@ -142,6 +156,9 @@ namespace FishSlapper
                 ? this.Helper.Translation.Get("hud.slap-prompt", new { key = slapKey }).ToString()
                 : null;
             this.Renderer.OnRenderedWorld(e, this.Controller.ActiveSession, slapPrompt);
+
+            if (Game1.activeClickableMenu is null)
+                this.DrawMobileActionButtons(e.SpriteBatch, uiScaled: false);
         }
 
         private void OnRenderedActiveMenu(object? sender, RenderedActiveMenuEventArgs e)
@@ -151,11 +168,68 @@ namespace FishSlapper
                 ? this.Helper.Translation.Get("hud.dive-slap-prompt", new { key = keyHint }).ToString()
                 : null;
             this.Renderer.OnRenderedActiveMenu(e, this.Controller.ActiveSession, promptText);
+
+            if (Game1.activeClickableMenu is BobberBar)
+                this.DrawMobileActionButtons(e.SpriteBatch, uiScaled: true);
         }
 
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
         {
             this.Controller.OnMenuChanged(e);
         }
+
+        private void DrawMobileActionButtons(SpriteBatch spriteBatch, bool uiScaled)
+        {
+            var layout = this.GetMobileActionButtonsLayout(uiScaled);
+            if (!layout.HasAnyButton)
+                return;
+
+            string diveLabel = this.Helper.Translation.Get("hud.mobile-dive-button").ToString();
+            string slapLabel = this.Helper.Translation.Get("hud.mobile-slap-button").ToString();
+            this.Renderer.DrawMobileActionButtons(spriteBatch, layout, diveLabel, slapLabel);
+        }
+
+        private DiveSlapRenderer.MobileActionButtonsLayout GetMobileActionButtonsLayout(bool uiScaled)
+        {
+            bool showButtons = this.Config.EnableMobileButton;
+            bool showDiveButton = showButtons && this.Controller.CanUseMobileDiveButton();
+            bool showSlapButton = showButtons && this.Controller.CanUseMobileSlapButton();
+            return this.Renderer.GetMobileActionButtonsLayout(
+                this.Controller.ActiveSession,
+                uiScaled,
+                showDiveButton,
+                showSlapButton
+            );
+        }
+
+        private bool TryHandleMobileActionButtonPress(ButtonPressedEventArgs e)
+        {
+            if (e.Button != SButton.MouseLeft)
+                return false;
+
+            var layout = this.GetMobileActionButtonsLayout(uiScaled: Game1.activeClickableMenu is BobberBar);
+            if (!layout.HasAnyButton)
+                return false;
+
+            int cursorX = (int)e.Cursor.ScreenPixels.X;
+            int cursorY = (int)e.Cursor.ScreenPixels.Y;
+
+            if (layout.HasDiveButton && layout.DiveButtonBounds.Contains(cursorX, cursorY))
+            {
+                this.Helper.Input.Suppress(e.Button);
+                this.Controller.TryUseMobileDiveButton();
+                return true;
+            }
+
+            if (layout.HasSlapButton && layout.SlapButtonBounds.Contains(cursorX, cursorY))
+            {
+                this.Helper.Input.Suppress(e.Button);
+                this.Controller.TryUseMobileSlapButton();
+                return true;
+            }
+
+            return false;
+        }
+
     }
 }

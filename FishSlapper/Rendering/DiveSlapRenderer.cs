@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI.Events;
 using StardewValley;
+using StardewValley.Menus;
 using FishSlapper.Gameplay;
 
 namespace FishSlapper.Rendering
@@ -60,10 +61,16 @@ namespace FishSlapper.Rendering
         private const float PromptPadX = 10f;
         private const float PromptPadY = 5f;
         private const float PromptBelowFeetOffset = 48f;
+        private const float MobileButtonScale = 4f;
+        private const float MobileButtonOffsetX = 196f;
+        private const float MobileButtonCenterYOffset = -22f;
+        private const float MobileButtonMargin = 16f;
         private const int SwimShadowFrameSize = 16;
         private const int SwimShadowFrameCount = 10;
         private const int SwimShadowFrameDurationMs = 70;
         private const float SwimShadowScale = 4f;
+        // MobileAtlas_manually_made 图集中圆角正方形按钮底板的 sprite 区域
+        private static readonly Rectangle MobileActionButtonSourceRect = new(95, 131, 34, 34);
 
         private static readonly Color HudBorderColor = new(40, 30, 20, 230);
         private static readonly Color HudHitFilledColor = new(255, 200, 50);
@@ -73,11 +80,14 @@ namespace FishSlapper.Rendering
         private static readonly Color HudTimeYellowColor = new(240, 220, 50);
         private static readonly Color HudTimeRedColor = new(230, 60, 50);
         private static readonly Color HudTextShadowColor = new(20, 15, 10, 180);
+        private static readonly Color MobileButtonTextColor = new(74, 48, 28);
 
         private readonly List<BurstParticle> burstParticles = new();
         private readonly Random rng = new();
         private Texture2D? pixelTexture;
+        private Texture2D? mobileAtlasTexture;
         private Texture2D? swimShadowTexture;
+        private bool attemptedMobileAtlasLoad;
         private int caughtFishSlapTick = -1;
         private int swimShadowFrame;
         private int swimShadowTimer = SwimShadowFrameDurationMs;
@@ -107,6 +117,16 @@ namespace FishSlapper.Rendering
             public float RotationSpeed;
             public Color Color;
             public float Gravity;
+        }
+
+        internal readonly record struct MobileActionButtonsLayout(
+            bool HasDiveButton,
+            Rectangle DiveButtonBounds,
+            bool HasSlapButton,
+            Rectangle SlapButtonBounds
+        )
+        {
+            public bool HasAnyButton => this.HasDiveButton || this.HasSlapButton;
         }
 
         public bool ShouldHideCaughtFishToolPreview => this.hideCaughtFishPreview;
@@ -372,6 +392,77 @@ namespace FishSlapper.Rendering
         {
             if (diveSlapPrompt is not null)
                 this.DrawDiveSlapPrompt(e.SpriteBatch, diveSlapPrompt);
+        }
+
+        public MobileActionButtonsLayout GetMobileActionButtonsLayout(
+            DiveSlapSession? session,
+            bool uiScaled,
+            bool showDiveButton,
+            bool showSlapButton
+        )
+        {
+            int buttonCount = (showDiveButton ? 1 : 0) + (showSlapButton ? 1 : 0);
+            if (buttonCount <= 0)
+                return default;
+
+            float buttonSize = MobileActionButtonSourceRect.Width * MobileButtonScale;
+            float totalHeight = buttonCount * buttonSize;
+            Vector2 anchorScreenPos = this.GetMobileButtonsAnchorScreenPosition(session, uiScaled);
+            float left = anchorScreenPos.X + MobileButtonOffsetX;
+            float top = anchorScreenPos.Y + MobileButtonCenterYOffset - totalHeight / 2f;
+            left = MathHelper.Clamp(left, MobileButtonMargin, Game1.uiViewport.Width - buttonSize - MobileButtonMargin);
+            top = MathHelper.Clamp(top, MobileButtonMargin, Game1.uiViewport.Height - totalHeight - MobileButtonMargin);
+
+            Rectangle diveBounds = Rectangle.Empty;
+            Rectangle slapBounds = Rectangle.Empty;
+            int buttonIndex = 0;
+
+            if (showDiveButton)
+            {
+                diveBounds = new Rectangle(
+                    (int)MathF.Round(left),
+                    (int)MathF.Round(top + buttonIndex * buttonSize),
+                    (int)MathF.Round(buttonSize),
+                    (int)MathF.Round(buttonSize)
+                );
+                buttonIndex++;
+            }
+
+            if (showSlapButton)
+            {
+                slapBounds = new Rectangle(
+                    (int)MathF.Round(left),
+                    (int)MathF.Round(top + buttonIndex * buttonSize),
+                    (int)MathF.Round(buttonSize),
+                    (int)MathF.Round(buttonSize)
+                );
+            }
+
+            return new MobileActionButtonsLayout(
+                showDiveButton,
+                diveBounds,
+                showSlapButton,
+                slapBounds
+            );
+        }
+
+        public void DrawMobileActionButtons(
+            SpriteBatch spriteBatch,
+            MobileActionButtonsLayout layout,
+            string diveButtonLabel,
+            string slapButtonLabel
+        )
+        {
+            if (!layout.HasAnyButton)
+                return;
+
+            this.EnsureMobileAtlasTexture();
+
+            if (layout.HasDiveButton)
+                this.DrawMobileActionButton(spriteBatch, layout.DiveButtonBounds, diveButtonLabel);
+
+            if (layout.HasSlapButton)
+                this.DrawMobileActionButton(spriteBatch, layout.SlapButtonBounds, slapButtonLabel);
         }
 
         private void DrawDiveSession(SpriteBatch spriteBatch, DiveSlapSession session)
@@ -875,6 +966,39 @@ namespace FishSlapper.Rendering
             this.DrawPromptBox(spriteBatch, uiCenterX, uiFeetY + PromptBelowFeetOffset * zoom, promptText);
         }
 
+        private void DrawMobileActionButton(SpriteBatch spriteBatch, Rectangle bounds, string label)
+        {
+            if (this.mobileAtlasTexture is not null)
+            {
+                spriteBatch.Draw(
+                    this.mobileAtlasTexture,
+                    bounds,
+                    MobileActionButtonSourceRect,
+                    Color.White,
+                    0f,
+                    Vector2.Zero,
+                    SpriteEffects.None,
+                    1f
+                );
+            }
+            else
+            {
+                IClickableMenu.drawTextureBox(spriteBatch, bounds.X, bounds.Y, bounds.Width, bounds.Height, Color.White);
+            }
+
+            Vector2 textSize = Game1.smallFont.MeasureString(label);
+            float availableWidth = bounds.Width - 16f;
+            float textScale = textSize.X > 0f
+                ? Math.Min(1f, availableWidth / textSize.X)
+                : 1f;
+            Vector2 textPos = new(
+                bounds.X + (bounds.Width - textSize.X * textScale) / 2f,
+                bounds.Y + (bounds.Height - textSize.Y * textScale) / 2f
+            );
+
+            Utility.drawTextWithShadow(spriteBatch, label, Game1.smallFont, textPos, MobileButtonTextColor, textScale);
+        }
+
         private void DrawPromptBox(SpriteBatch spriteBatch, float centerX, float topY, string text)
         {
             this.EnsurePixelTexture();
@@ -896,6 +1020,20 @@ namespace FishSlapper.Rendering
             spriteBatch.DrawString(Game1.smallFont, text,
                 textPos, Color.White * pulse,
                 0f, Vector2.Zero, 1f, SpriteEffects.None, 1f);
+        }
+
+        private Vector2 GetMobileButtonsAnchorScreenPosition(DiveSlapSession? session, bool uiScaled)
+        {
+            Vector2 worldPos = session?.RenderPosition ?? Game1.player.Position;
+            if (uiScaled)
+            {
+                float zoom = Game1.options.zoomLevel;
+                Vector2 viewportOffset = worldPos - new Vector2(Game1.viewport.X, Game1.viewport.Y);
+                return new Vector2((viewportOffset.X + 32f) * zoom, viewportOffset.Y * zoom);
+            }
+
+            Vector2 localPos = Game1.GlobalToLocal(Game1.viewport, worldPos);
+            return new Vector2(localPos.X + 32f, localPos.Y);
         }
 
         private float GetPhaseProgress(DiveSlapSession session)
@@ -1304,6 +1442,22 @@ namespace FishSlapper.Rendering
 
             this.pixelTexture = new Texture2D(Game1.graphics.GraphicsDevice, 1, 1);
             this.pixelTexture.SetData(new[] { Color.White });
+        }
+
+        private void EnsureMobileAtlasTexture()
+        {
+            if (this.mobileAtlasTexture is not null || this.attemptedMobileAtlasLoad)
+                return;
+
+            this.attemptedMobileAtlasLoad = true;
+            try
+            {
+                this.mobileAtlasTexture = Game1.content.Load<Texture2D>(@"LooseSprites\MobileAtlas_manually_made");
+            }
+            catch
+            {
+                this.mobileAtlasTexture = null;
+            }
         }
 
         private void EnsureSwimShadowTexture()

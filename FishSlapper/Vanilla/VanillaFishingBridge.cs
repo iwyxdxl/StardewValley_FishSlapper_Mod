@@ -22,13 +22,34 @@ namespace FishSlapper.Vanilla
             return rod is not null && rod.fishCaught;
         }
 
+        public bool CanCreateDiveSession()
+        {
+            if (!Context.IsWorldReady
+                || Game1.player.CurrentTool is not FishingRod rod
+                || Game1.activeClickableMenu is not BobberBar)
+            {
+                return false;
+            }
+
+            if (rod.fishCaught || rod.pullingOutOfWater || rod.castedButBobberStillInAir)
+                return false;
+
+            Vector2 bobberPosition = rod.bobber.Get();
+            return bobberPosition.LengthSquared() > 1f
+                && !float.IsNaN(bobberPosition.X)
+                && !float.IsNaN(bobberPosition.Y)
+                && !float.IsInfinity(bobberPosition.X)
+                && !float.IsInfinity(bobberPosition.Y);
+        }
+
         public bool TryCreateDiveSession(out DiveSlapSession? session)
         {
             session = null;
 
-            if (!Context.IsWorldReady || Game1.player.CurrentTool is not FishingRod rod || Game1.activeClickableMenu is not BobberBar bobberBar)
+            if (!this.CanCreateDiveSession()
+                || Game1.player.CurrentTool is not FishingRod rod
+                || Game1.activeClickableMenu is not BobberBar bobberBar)
                 return false;
-
             Vector2 bobberPosition = rod.bobber.Get();
             Vector2 originalPlayerPosition = Game1.player.Position;
             int castFacingDirection = ResolveDiveCastFacingDirection(rod, originalPlayerPosition, bobberPosition);

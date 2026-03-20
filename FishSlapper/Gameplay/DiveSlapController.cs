@@ -93,6 +93,40 @@ namespace FishSlapper.Gameplay
                 : null;
         }
 
+        public bool CanUseMobileDiveButton()
+        {
+            return Context.IsWorldReady
+                && this.activeSession is null
+                && this.vanillaBridge.CanCreateDiveSession();
+        }
+
+        public bool CanUseMobileSlapButton()
+        {
+            if (!Context.IsWorldReady)
+                return false;
+
+            if (this.activeSession is not null)
+                return this.activeSession.State == DiveSlapState.Slapping;
+
+            return this.vanillaBridge.TryGetCaughtFishRod(out _);
+        }
+
+        public bool TryUseMobileDiveButton()
+        {
+            return this.TryStartDiveSlapSession();
+        }
+
+        public bool TryUseMobileSlapButton()
+        {
+            if (!Context.IsWorldReady)
+                return false;
+
+            if (this.activeSession is not null)
+                return this.TryPerformDiveSessionSlap();
+
+            return this.TryPerformCaughtFishSlap();
+        }
+
         public void UpdateConfig(ModConfig config)
         {
             this.config = config;
@@ -114,26 +148,14 @@ namespace FishSlapper.Gameplay
                 return;
             }
 
-            if (this.config.SlapKey.JustPressed() && this.vanillaBridge.TryGetCaughtFishRod(out FishingRod? caughtFishRod) && caughtFishRod is not null)
+            if (this.config.SlapKey.JustPressed() && this.TryPerformCaughtFishSlap())
             {
-                this.RecordCaughtFishSlap(caughtFishRod);
-                this.renderer.PlayCaughtFishSlap();
                 this.helper.Input.Suppress(e.Button);
                 return;
             }
 
-            if (!this.config.DiveSlapKey.JustPressed())
-                return;
-
-            if (!this.vanillaBridge.TryCreateDiveSession(out DiveSlapSession? session) || session is null)
-                return;
-
-            this.activeSession = session;
-            StopFishingRodLoopingAudio(session.Rod);
-            this.LockPlayerForDive(session);
-            this.BeginPhase(session, DiveSlapState.Windup, WindupTicks, session.OriginalPlayerPosition, session.OriginalPlayerPosition);
-            this.monitor.Log("Started dive slap session.", LogLevel.Trace);
-            this.helper.Input.Suppress(e.Button);
+            if (this.config.DiveSlapKey.JustPressed() && this.TryStartDiveSlapSession())
+                this.helper.Input.Suppress(e.Button);
         }
 
         public void OnUpdateTicked()
@@ -344,6 +366,12 @@ namespace FishSlapper.Gameplay
 
         private void HandleActiveSessionInput(ButtonPressedEventArgs e)
         {
+            if (e.Button == SButton.MouseLeft)
+            {
+                this.helper.Input.Suppress(e.Button);
+                return;
+            }
+
             bool pressedDiveKey = this.config.DiveSlapKey.JustPressed();
             bool pressedSlapKey = this.config.SlapKey.JustPressed();
             if (!pressedDiveKey && !pressedSlapKey)
@@ -351,16 +379,46 @@ namespace FishSlapper.Gameplay
 
             this.helper.Input.Suppress(e.Button);
 
-            if (this.activeSession is null || this.activeSession.State != DiveSlapState.Slapping || !pressedSlapKey)
-                return;
+            if (pressedSlapKey)
+                this.TryPerformDiveSessionSlap();
+        }
 
-            // 入水后只认扇鱼键；累计次数达到阈值后立刻走成功结算。
+        private bool TryPerformCaughtFishSlap()
+        {
+            if (!this.vanillaBridge.TryGetCaughtFishRod(out FishingRod? caughtFishRod) || caughtFishRod is null)
+                return false;
+
+            this.RecordCaughtFishSlap(caughtFishRod);
+            this.renderer.PlayCaughtFishSlap();
+            return true;
+        }
+
+        private bool TryStartDiveSlapSession()
+        {
+            if (!this.vanillaBridge.TryCreateDiveSession(out DiveSlapSession? session) || session is null)
+                return false;
+
+            this.activeSession = session;
+            StopFishingRodLoopingAudio(session.Rod);
+            this.LockPlayerForDive(session);
+            this.BeginPhase(session, DiveSlapState.Windup, WindupTicks, session.OriginalPlayerPosition, session.OriginalPlayerPosition);
+            this.monitor.Log("Started dive slap session.", LogLevel.Trace);
+            return true;
+        }
+
+        private bool TryPerformDiveSessionSlap()
+        {
+            if (this.activeSession is null || this.activeSession.State != DiveSlapState.Slapping)
+                return false;
+
             this.activeSession.CurrentHits++;
             this.activeSession.SlapAnimationTicksRemaining = this.renderer.DiveHitTickDuration;
             this.renderer.PlayDiveSlap(this.activeSession, this.activeSession.TargetBobberPosition + new Vector2(0f, -8f));
 
             if (this.activeSession.CurrentHits >= this.activeSession.RequiredHits)
                 this.BeginResolveSuccess(this.activeSession);
+
+            return true;
         }
 
         private void BeginResolveSuccess(DiveSlapSession session)
