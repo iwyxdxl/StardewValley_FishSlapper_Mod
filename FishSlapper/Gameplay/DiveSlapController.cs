@@ -366,6 +366,9 @@ namespace FishSlapper.Gameplay
 
         private void HandleActiveSessionInput(ButtonPressedEventArgs e)
         {
+            // 跳水会话期间必须吞掉所有 MouseLeft，否则多余的点击会泄漏给
+            // 原版 FishingRod，在返回动画播放中触发错误的"鱼上钩了"流程。
+            // 移动端按钮的点击已由 ModEntry.TryHandleMobileActionButtonPress 优先处理，不受影响。
             if (e.Button == SButton.MouseLeft)
             {
                 this.helper.Input.Suppress(e.Button);

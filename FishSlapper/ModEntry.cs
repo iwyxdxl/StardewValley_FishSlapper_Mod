@@ -18,6 +18,8 @@ namespace FishSlapper
         private ModConfig Config = null!;
         private DiveSlapController Controller = null!;
         private DiveSlapRenderer Renderer = null!;
+        private DiveSlapRenderer.MobileActionButtonsLayout cachedMobileLayout;
+        private bool cachedMobileLayoutUiScaled;
 
         public override void Entry(IModHelper helper)
         {
@@ -181,6 +183,9 @@ namespace FishSlapper
         private void DrawMobileActionButtons(SpriteBatch spriteBatch, bool uiScaled)
         {
             var layout = this.GetMobileActionButtonsLayout(uiScaled);
+            this.cachedMobileLayout = layout;
+            this.cachedMobileLayoutUiScaled = uiScaled;
+
             if (!layout.HasAnyButton)
                 return;
 
@@ -207,12 +212,19 @@ namespace FishSlapper
             if (e.Button != SButton.MouseLeft)
                 return false;
 
-            var layout = this.GetMobileActionButtonsLayout(uiScaled: Game1.activeClickableMenu is BobberBar);
+            // 使用上一帧绘制时缓存的 layout，保证 bounds 与玩家看到的按钮位置一致。
+            // 手机端 pinch-zoom 会在帧间持续改变 viewport，
+            // 如果此处重新计算 layout，位置可能与已绘制的按钮产生偏差。
+            var layout = this.cachedMobileLayout;
             if (!layout.HasAnyButton)
                 return false;
 
-            int cursorX = (int)e.Cursor.ScreenPixels.X;
-            int cursorY = (int)e.Cursor.ScreenPixels.Y;
+            // 使用 Game1.getMouseX/Y 而非 ScreenPixels：
+            // 前者基于 getMouseXRaw() 并除以 SpriteBatch 对应的缩放系数，
+            // 在所有平台（PC / Android / iOS）上都与绘制坐标空间一致。
+            bool uiScaled = this.cachedMobileLayoutUiScaled;
+            int cursorX = Game1.getMouseX(ui_scale: uiScaled);
+            int cursorY = Game1.getMouseY(ui_scale: uiScaled);
 
             if (layout.HasDiveButton && layout.DiveButtonBounds.Contains(cursorX, cursorY))
             {

@@ -410,8 +410,13 @@ namespace FishSlapper.Rendering
             Vector2 anchorScreenPos = this.GetMobileButtonsAnchorScreenPosition(session, uiScaled);
             float left = anchorScreenPos.X + MobileButtonOffsetX;
             float top = anchorScreenPos.Y + MobileButtonCenterYOffset - totalHeight / 2f;
-            left = MathHelper.Clamp(left, MobileButtonMargin, Game1.uiViewport.Width - buttonSize - MobileButtonMargin);
-            top = MathHelper.Clamp(top, MobileButtonMargin, Game1.uiViewport.Height - totalHeight - MobileButtonMargin);
+
+            // clamp 必须使用与按钮 bounds 同一坐标空间的视口尺寸：
+            // uiScaled → UI SpriteBatch 空间 → uiViewport；否则 → 世界 SpriteBatch 空间 → viewport。
+            int viewportW = uiScaled ? Game1.uiViewport.Width : Game1.viewport.Width;
+            int viewportH = uiScaled ? Game1.uiViewport.Height : Game1.viewport.Height;
+            left = MathHelper.Clamp(left, MobileButtonMargin, viewportW - buttonSize - MobileButtonMargin);
+            top = MathHelper.Clamp(top, MobileButtonMargin, viewportH - totalHeight - MobileButtonMargin);
 
             Rectangle diveBounds = Rectangle.Empty;
             Rectangle slapBounds = Rectangle.Empty;
@@ -1025,15 +1030,16 @@ namespace FishSlapper.Rendering
         private Vector2 GetMobileButtonsAnchorScreenPosition(DiveSlapSession? session, bool uiScaled)
         {
             Vector2 worldPos = session?.RenderPosition ?? Game1.player.Position;
+            Vector2 viewportOffset = worldPos - new Vector2(Game1.viewport.X, Game1.viewport.Y);
+
             if (uiScaled)
             {
-                float zoom = Game1.options.zoomLevel;
-                Vector2 viewportOffset = worldPos - new Vector2(Game1.viewport.X, Game1.viewport.Y);
-                return new Vector2((viewportOffset.X + 32f) * zoom, viewportOffset.Y * zoom);
+                // 世界坐标 → 屏幕像素(×zoom) → UI SpriteBatch 坐标(÷uiScale)
+                float scale = Game1.options.zoomLevel / Game1.options.uiScale;
+                return new Vector2((viewportOffset.X + 32f) * scale, viewportOffset.Y * scale);
             }
 
-            Vector2 localPos = Game1.GlobalToLocal(Game1.viewport, worldPos);
-            return new Vector2(localPos.X + 32f, localPos.Y);
+            return new Vector2(viewportOffset.X + 32f, viewportOffset.Y);
         }
 
         private float GetPhaseProgress(DiveSlapSession session)

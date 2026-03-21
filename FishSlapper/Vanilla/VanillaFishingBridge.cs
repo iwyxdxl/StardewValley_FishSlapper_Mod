@@ -46,10 +46,13 @@ namespace FishSlapper.Vanilla
         {
             session = null;
 
+            // CanCreateDiveSession 已验证 FishingRod/BobberBar 存在，
+            // 此处的模式匹配仅用于 C# 类型窄化以获取局部变量。
             if (!this.CanCreateDiveSession()
                 || Game1.player.CurrentTool is not FishingRod rod
                 || Game1.activeClickableMenu is not BobberBar bobberBar)
                 return false;
+
             Vector2 bobberPosition = rod.bobber.Get();
             Vector2 originalPlayerPosition = Game1.player.Position;
             int castFacingDirection = ResolveDiveCastFacingDirection(rod, originalPlayerPosition, bobberPosition);
