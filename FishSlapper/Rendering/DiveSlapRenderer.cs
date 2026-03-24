@@ -468,8 +468,7 @@ namespace FishSlapper.Rendering
             this.toolSuppressedFarmer = renderFarmer;
             try
             {
-                if (renderFarmer.swimming.Value)
-                    this.DrawDiveSwimShadow(spriteBatch, renderFarmer);
+                this.DrawReplacementFarmerShadow(spriteBatch, renderFarmer);
 
                 renderFarmer.draw(spriteBatch);
             }
@@ -494,6 +493,7 @@ namespace FishSlapper.Rendering
             this.toolSuppressedFarmer = renderFarmer;
             try
             {
+                this.DrawReplacementFarmerShadow(spriteBatch, renderFarmer);
                 renderFarmer.draw(spriteBatch);
                 this.DrawCaughtFishHeldPreview(spriteBatch, farmer, state);
                 this.TryDrawCaughtFishInfoBoard(spriteBatch, farmer, state);
@@ -779,6 +779,17 @@ namespace FishSlapper.Rendering
                 SpriteEffects.None,
                 0f
             );
+        }
+
+        private void DrawReplacementFarmerShadow(SpriteBatch spriteBatch, Farmer renderFarmer)
+        {
+            if (renderFarmer.swimming.Value)
+            {
+                this.DrawDiveSwimShadow(spriteBatch, renderFarmer);
+                return;
+            }
+
+            renderFarmer.DrawShadow(spriteBatch);
         }
 
         private static int GetStandingFrame(int facingDirection)

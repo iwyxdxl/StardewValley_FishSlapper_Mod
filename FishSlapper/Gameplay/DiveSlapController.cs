@@ -497,6 +497,15 @@ namespace FishSlapper.Gameplay
                     || this.TryGetDiveRenderState(owner, out _));
         }
 
+        public bool ShouldSuppressFarmerShadow(Farmer farmer)
+        {
+            if (this.renderer.IsReplacementRenderFarmer(farmer))
+                return false;
+
+            return this.renderer.HasCaughtFishSlapReplacement(farmer)
+                || this.TryGetDiveRenderState(farmer, out _);
+        }
+
         public bool ShouldFreezeBobberBarUpdate(BobberBar bobberBar)
         {
             return this.vanillaBridge.ShouldFreezeBobberBarUpdate(bobberBar, this.ActiveSession);
