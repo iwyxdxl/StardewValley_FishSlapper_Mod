@@ -20,3 +20,7 @@ Thumbs.db
 
 # Generated mod config if the project folder is linked into the Mods directory
 /FishSlapper/config.json
+
+# Local temp files
+/tmp/
+

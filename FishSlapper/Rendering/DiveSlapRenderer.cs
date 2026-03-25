@@ -526,18 +526,13 @@ namespace FishSlapper.Rendering
             var fishData = ItemRegistry.GetMetadata(state.VisualData.FishQualifiedItemId).GetParsedOrErrorData();
             Texture2D fishTexture = fishData.GetTexture();
             Rectangle fishSourceRect = fishData.GetSourceRect(0, null);
-
-            spriteBatch.Draw(
-                Game1.mouseCursors,
-                Game1.GlobalToLocal(Game1.viewport, farmer.Position + new Vector2(-120f, -288f + boardBobOffset)),
-                new Rectangle(31, 1870, 73, 49),
-                Color.White * 0.8f,
-                0f,
-                Vector2.Zero,
-                4f,
-                SpriteEffects.None,
-                boardLayerDepth
+            Vector2 boardPosition = Game1.GlobalToLocal(
+                Game1.viewport,
+                farmer.Position + new Vector2(-120f, -288f + boardBobOffset)
             );
+            Rectangle boardSourceRect = new Rectangle(31, 1870, 73, 49);
+
+            this.DrawCaughtFishInfoBoardBackground(spriteBatch, farmer, boardPosition, boardSourceRect, boardLayerDepth);
 
             spriteBatch.Draw(
                 fishTexture,
@@ -614,6 +609,37 @@ namespace FishSlapper.Rendering
                 1f,
                 SpriteEffects.None,
                 textLayerDepth
+            );
+        }
+
+        private void DrawCaughtFishInfoBoardBackground(
+            SpriteBatch spriteBatch,
+            Farmer farmer,
+            Vector2 boardPosition,
+            Rectangle boardSourceRect,
+            float boardLayerDepth
+        )
+        {
+            Color boardColor = ReferenceEquals(farmer, Game1.player)
+                ? Color.White
+                : Color.White * 0.8f;
+
+            if (ReferenceEquals(farmer, Game1.player))
+            {
+                // 当前屏幕的钓鱼人视角里，原版 caught-fish 板底观感比旁观视角更实。
+                // 这里直接用不透明板底，避免扇鱼期间还能看出 10-20% 的透底。
+            }
+
+            spriteBatch.Draw(
+                Game1.mouseCursors,
+                boardPosition,
+                boardSourceRect,
+                boardColor,
+                0f,
+                Vector2.Zero,
+                4f,
+                SpriteEffects.None,
+                boardLayerDepth
             );
         }
 
