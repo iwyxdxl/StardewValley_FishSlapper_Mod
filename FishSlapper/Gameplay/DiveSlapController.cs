@@ -51,9 +51,11 @@ namespace FishSlapper.Gameplay
         private sealed class CaughtFishSlapSummary
         {
             public FishingRod Rod { get; set; } = null!;
+            public uint CaughtFishSessionId { get; set; }
             public string FishDisplayName { get; set; } = "???";
             public string PlayerName { get; set; } = "Player";
             public uint FirstSlapTick { get; set; }
+            public uint LastSlapTick { get; set; }
             public int SlapCount { get; set; }
         }
 
@@ -61,6 +63,12 @@ namespace FishSlapper.Gameplay
         {
             public DiveSlapSession? ActiveSession { get; set; }
             public CaughtFishSlapSummary? ActiveCaughtFishSlapSummary { get; set; }
+            public uint CurrentCaughtFishSessionId { get; set; }
+            public FishingRod? ObservedCaughtFishRod { get; set; }
+            public string ObservedCaughtFishQualifiedItemId { get; set; } = string.Empty;
+            public int ObservedCaughtFishSize { get; set; }
+            public int ObservedCaughtFishQuality { get; set; }
+            public bool ObservedCaughtFishBoss { get; set; }
         }
 
         public DiveSlapController(
@@ -180,7 +188,8 @@ namespace FishSlapper.Gameplay
             }
 
             ScreenState state = this.screenStates.Value;
-            this.UpdateCaughtFishSlapSummary(state, ticks);
+            this.SyncObservedCaughtFishSession(state);
+            this.UpdateCaughtFishSlapSummary(state);
             this.renderer.OnUpdateTicked(this.ActiveSession, ticks);
 
             if (state.ActiveSession is null)
@@ -707,46 +716,57 @@ namespace FishSlapper.Gameplay
 
         private void RecordCaughtFishSlap(ScreenState screenState, Farmer player, FishingRod rod)
         {
+            this.SyncObservedCaughtFishSession(screenState, rod);
+
             if (screenState.ActiveCaughtFishSlapSummary is not null
-                && !ReferenceEquals(screenState.ActiveCaughtFishSlapSummary.Rod, rod))
+                && !IsSameCaughtFishSession(screenState.ActiveCaughtFishSlapSummary, screenState, rod))
             {
-                this.CompleteCaughtFishSlapSummary(screenState, showMessage: true, (uint)Game1.ticks);
+                this.CompleteCaughtFishSlapSummary(screenState, showMessage: true);
             }
 
+            uint currentTick = (uint)Game1.ticks;
             string fishDisplayName = ResolveCaughtFishDisplayName(rod);
             if (screenState.ActiveCaughtFishSlapSummary is null)
             {
                 screenState.ActiveCaughtFishSlapSummary = new CaughtFishSlapSummary
                 {
                     Rod = rod,
+                    CaughtFishSessionId = screenState.CurrentCaughtFishSessionId,
                     FishDisplayName = fishDisplayName,
                     PlayerName = GetPlayerDisplayName(player),
-                    FirstSlapTick = (uint)Game1.ticks,
+                    FirstSlapTick = currentTick,
+                    LastSlapTick = currentTick,
                     SlapCount = 1
                 };
                 return;
             }
 
+            screenState.ActiveCaughtFishSlapSummary.Rod = rod;
+            screenState.ActiveCaughtFishSlapSummary.CaughtFishSessionId = screenState.CurrentCaughtFishSessionId;
             screenState.ActiveCaughtFishSlapSummary.FishDisplayName = fishDisplayName;
             screenState.ActiveCaughtFishSlapSummary.PlayerName = GetPlayerDisplayName(player);
+            screenState.ActiveCaughtFishSlapSummary.LastSlapTick = currentTick;
             screenState.ActiveCaughtFishSlapSummary.SlapCount++;
         }
 
-        private void UpdateCaughtFishSlapSummary(ScreenState screenState, uint ticks)
+        private void UpdateCaughtFishSlapSummary(ScreenState screenState)
         {
             if (screenState.ActiveCaughtFishSlapSummary is null)
                 return;
 
-            if (ReferenceEquals(Game1.player?.CurrentTool, screenState.ActiveCaughtFishSlapSummary.Rod)
-                && screenState.ActiveCaughtFishSlapSummary.Rod.fishCaught)
+            Farmer? player = Game1.player;
+            if (player is not null
+                && this.vanillaBridge.TryGetCaughtFishRod(player, out FishingRod? caughtFishRod)
+                && caughtFishRod is not null
+                && IsSameCaughtFishSession(screenState.ActiveCaughtFishSlapSummary, screenState, caughtFishRod))
             {
                 return;
             }
 
-            this.CompleteCaughtFishSlapSummary(screenState, showMessage: true, ticks);
+            this.CompleteCaughtFishSlapSummary(screenState, showMessage: true);
         }
 
-        private void CompleteCaughtFishSlapSummary(ScreenState screenState, bool showMessage, uint ticks)
+        private void CompleteCaughtFishSlapSummary(ScreenState screenState, bool showMessage)
         {
             if (screenState.ActiveCaughtFishSlapSummary is null)
                 return;
@@ -754,15 +774,16 @@ namespace FishSlapper.Gameplay
             CaughtFishSlapSummary summary = screenState.ActiveCaughtFishSlapSummary;
             screenState.ActiveCaughtFishSlapSummary = null;
             if (showMessage)
-                this.ShowCaughtFishSlapMessage(summary, ticks);
+                this.ShowCaughtFishSlapMessage(summary);
         }
 
-        private void ShowCaughtFishSlapMessage(CaughtFishSlapSummary summary, uint currentTick)
+        private void ShowCaughtFishSlapMessage(CaughtFishSlapSummary summary)
         {
             if (summary.SlapCount <= 0)
                 return;
 
-            int elapsedTicks = Math.Max(1, (int)(currentTick - summary.FirstSlapTick));
+            uint endTick = Math.Max(summary.FirstSlapTick, summary.LastSlapTick);
+            int elapsedTicks = Math.Max(1, (int)(endTick - summary.FirstSlapTick));
             float elapsedSeconds = Math.Max(0.1f, elapsedTicks / 60f);
             string timeText = elapsedSeconds.ToString("0.0", CultureInfo.InvariantCulture);
             string successText = this.helper.Translation
@@ -778,6 +799,51 @@ namespace FishSlapper.Gameplay
                 )
                 .ToString();
             this.ShowGlobalCornerTextbox(successText);
+        }
+
+        private void SyncObservedCaughtFishSession(ScreenState screenState)
+        {
+            Farmer? player = Game1.player;
+            if (player is null || !this.vanillaBridge.TryGetCaughtFishRod(player, out FishingRod? rod) || rod is null)
+            {
+                ResetObservedCaughtFishSession(screenState);
+                return;
+            }
+
+            this.SyncObservedCaughtFishSession(screenState, rod);
+        }
+
+        private void SyncObservedCaughtFishSession(ScreenState screenState, FishingRod rod)
+        {
+            string qualifiedFishId = rod.whichFish?.QualifiedItemId ?? string.Empty;
+            if (!ReferenceEquals(screenState.ObservedCaughtFishRod, rod)
+                || !string.Equals(screenState.ObservedCaughtFishQualifiedItemId, qualifiedFishId, StringComparison.Ordinal)
+                || screenState.ObservedCaughtFishSize != rod.fishSize
+                || screenState.ObservedCaughtFishQuality != rod.fishQuality
+                || screenState.ObservedCaughtFishBoss != rod.bossFish)
+            {
+                screenState.CurrentCaughtFishSessionId++;
+                screenState.ObservedCaughtFishRod = rod;
+                screenState.ObservedCaughtFishQualifiedItemId = qualifiedFishId;
+                screenState.ObservedCaughtFishSize = rod.fishSize;
+                screenState.ObservedCaughtFishQuality = rod.fishQuality;
+                screenState.ObservedCaughtFishBoss = rod.bossFish;
+            }
+        }
+
+        private static void ResetObservedCaughtFishSession(ScreenState screenState)
+        {
+            screenState.ObservedCaughtFishRod = null;
+            screenState.ObservedCaughtFishQualifiedItemId = string.Empty;
+            screenState.ObservedCaughtFishSize = 0;
+            screenState.ObservedCaughtFishQuality = 0;
+            screenState.ObservedCaughtFishBoss = false;
+        }
+
+        private static bool IsSameCaughtFishSession(CaughtFishSlapSummary summary, ScreenState screenState, FishingRod rod)
+        {
+            return ReferenceEquals(summary.Rod, rod)
+                && summary.CaughtFishSessionId == screenState.CurrentCaughtFishSessionId;
         }
 
         private static string ResolveCaughtFishDisplayName(FishingRod rod)
